@@ -3,7 +3,7 @@ import 'package:candlesticks/candlesticks.dart';
 import '../services/binance_service.dart';
 import '../backtest_engine.dart';
 import '../models/crypto_data.dart';
-
+import '../services/storage_service.dart';
 // ==========================================
 // EKRAN İÇİ STATE MANAGEMENT (ViewModel)
 // ==========================================
@@ -76,7 +76,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
-    Future.microtask(() => _viewModel.loadData(_viewModel.currentSymbol));
+    
+    // Eski Future.microtask satırını sildik, yerine hafıza fonksiyonumuzu ekledik:
+    _loadSavedPreferences();
+  }
+
+  // YENİ EKLENEN HAFIZA FONKSİYONU
+  Future<void> _loadSavedPreferences() async {
+    // 1. StorageService'den tüm kayıtlı verileri çekiyoruz
+    final savedSymbol = await StorageService.getSymbol();
+    final savedTimeframe = await StorageService.getTimeframe();
+    final savedSettings = await StorageService.getBacktestParams();
+    
+    setState(() {
+      // 2. Eğer daha önceden coin seçilmişse ViewModel'e aktar
+      if (savedSymbol != null) {
+        _viewModel.currentSymbol = savedSymbol; 
+      }
+      
+      if (savedTimeframe != null) {
+        _viewModel.currentTimeframe = savedTimeframe;
+      }
+
+      // 3. Eğer backtest ayarları kaydedilmişse değişkenlere aktar
+      if (savedSettings != null) {
+        _shortMa = (savedSettings['shortMa'] ?? 5).toDouble();
+        _longMa = (savedSettings['longMa'] ?? 15).toDouble();
+        _slPct = (savedSettings['stopLoss'] ?? 2.0).toDouble();
+        _tpPct = (savedSettings['takeProfit'] ?? 4.0).toDouble();
+      }
+    });
+
+    // 4. Değişkenler hafızadan dolduktan sonra veriyi çek!
+    _viewModel.loadData(_viewModel.currentSymbol, interval: _viewModel.currentTimeframe);
   }
 
   @override
@@ -368,6 +400,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
     
+    // Backtest başlamadan hemen önce güncel parametreleri cihaza kaydediyoruz
+    StorageService.saveBacktestParams(_shortMa.toInt(), _longMa.toInt(), _slPct, _tpPct);
+
     // Backtest motoru (backtest_engine.dart) hala CryptoData bekliyor ve eskiden yeniye sıralı veri istiyor.
     // Yeni servisimiz (BinanceService) veriyi Candle ve "yeni baştan" (ters sıralı) veriyor.
     // Bu yüzden Backtest motoruna göndermeden önce geri çevirip mapliyoruz.
@@ -568,6 +603,7 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
         },
         onSelected: (String selection) {
           setState(() {}); 
+          StorageService.saveSymbol(selection);
           widget.viewModel.loadData(selection);
           
           FocusManager.instance.primaryFocus?.unfocus();
@@ -586,6 +622,7 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
             onSubmitted: (value) {
               if (value.trim().isNotEmpty) {
                 setState(() {}); 
+                StorageService.saveSymbol(value);
                 widget.viewModel.loadData(value);
                 FocusManager.instance.primaryFocus?.unfocus();
                 Future.delayed(const Duration(milliseconds: 50), () => fieldController.clear());
@@ -719,6 +756,7 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
               onSelected: (selected) {
                 if (selected) {
                   setState(() {});
+                  StorageService.saveTimeframe(tf);
                   widget.viewModel.loadData(widget.viewModel.currentSymbol, interval: tf);
                 }
               },
