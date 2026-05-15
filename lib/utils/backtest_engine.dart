@@ -1,6 +1,8 @@
-import 'models/crypto_data.dart';
+import 'package:candlesticks/candlesticks.dart';
 
-// Backtest sonucunu tutacağımız model
+// ==========================================
+// BACKTEST SONUÇ MODELİ
+// ==========================================
 class BacktestResult {
   final double initialBalance;
   final double finalBalance;
@@ -23,9 +25,12 @@ class BacktestResult {
   });
 }
 
+// ==========================================
+// BACKTEST MOTORU (SAF MATEMATİK & MANTIK)
+// ==========================================
 class BacktestEngine {
   static BacktestResult runBacktest(
-    List<CryptoData> data,
+    List<Candle> data,
     int shortMaPeriod,
     int longMaPeriod,
     double stopLossPct,
@@ -38,9 +43,16 @@ class BacktestEngine {
     int totalTrades = 0;
     const double fee = 0.001; // %0.1 işlem komisyonu
 
+    // Hesaplamanın doğru çalışması için verilerin eskiden yeniye doğru sıralı olması gerekir.
+    // Dışarıdan gelen veri yeni->eski (ters sıralı) ise düzeltiyoruz.
+    List<Candle> chronoData = data.toList();
+    if (chronoData.isNotEmpty && chronoData.first.date.isAfter(chronoData.last.date)) {
+      chronoData = chronoData.reversed.toList();
+    }
+
     // İndikatörler için gereken minimum periyot (Örn: RSI için en az 14 şartı)
     int startIndex = longMaPeriod > 14 ? longMaPeriod : 14;
-    if (data.length <= startIndex) {
+    if (chronoData.length <= startIndex) {
       return BacktestResult(
         initialBalance: usdtBalance,
         finalBalance: usdtBalance,
@@ -53,8 +65,8 @@ class BacktestEngine {
       );
     }
 
-    for (int i = startIndex; i < data.length; i++) {
-      double currentPrice = data[i].close;
+    for (int i = startIndex; i < chronoData.length; i++) {
+      double currentPrice = chronoData[i].close;
 
       // ==========================================
       // 1. İndikatör Hesaplamaları (SMA ve RSI)
@@ -63,20 +75,20 @@ class BacktestEngine {
       // Kısa ve Uzun SMA (Current ve Previous - Kesişim bulmak için)
       double sumShort = 0, prevSumShort = 0;
       for (int j = 0; j < shortMaPeriod; j++) {
-        sumShort += data[i - j].close;
+        sumShort += chronoData[i - j].close;
       }
       for (int j = 0; j < shortMaPeriod; j++) {
-        prevSumShort += data[i - 1 - j].close;
+        prevSumShort += chronoData[i - 1 - j].close;
       }
       double smaShort = sumShort / shortMaPeriod;
       double prevSmaShort = prevSumShort / shortMaPeriod;
 
       double sumLong = 0, prevSumLong = 0;
       for (int j = 0; j < longMaPeriod; j++) {
-        sumLong += data[i - j].close;
+        sumLong += chronoData[i - j].close;
       }
       for (int j = 0; j < longMaPeriod; j++) {
-        prevSumLong += data[i - 1 - j].close;
+        prevSumLong += chronoData[i - 1 - j].close;
       }
       double smaLong = sumLong / longMaPeriod;
       double prevSmaLong = prevSumLong / longMaPeriod;
@@ -85,7 +97,7 @@ class BacktestEngine {
       double gains = 0;
       double losses = 0;
       for (int j = 0; j < 14; j++) {
-        double change = data[i - j].close - data[i - j - 1].close;
+        double change = chronoData[i - j].close - chronoData[i - j - 1].close;
         if (change > 0) {
           gains += change;
         } else {
@@ -109,7 +121,6 @@ class BacktestEngine {
       if (!inPosition) {
         bool isCrossUp = prevSmaShort <= prevSmaLong && smaShort > smaLong; // Kesişim yukarı yönlü
         if (isCrossUp && rsi > 50) {
-          // ALIM YAP (Komisyon düşülerek USDT -> Coin çevrilir)
           coinBalance = (usdtBalance * (1.0 - fee)) / currentPrice;
           usdtBalance = 0;
           entryPrice = currentPrice;
@@ -121,7 +132,6 @@ class BacktestEngine {
         bool isCrossDown = prevSmaShort >= prevSmaLong && smaShort < smaLong; // Kesişim aşağı yönlü
 
         if (isStopLoss || isTakeProfit || isCrossDown) {
-          // SATIŞ YAP (Komisyon düşülerek Coin -> USDT çevrilir)
           usdtBalance = (coinBalance * currentPrice) * (1.0 - fee);
           coinBalance = 0;
           inPosition = false;
@@ -132,7 +142,7 @@ class BacktestEngine {
 
     // Döngü sonunda hala işlem açıksa anlık fiyattan kapat (Net bakiyeyi görmek için)
     if (inPosition) {
-      usdtBalance = (coinBalance * data.last.close) * (1.0 - fee);
+      usdtBalance = (coinBalance * chronoData.last.close) * (1.0 - fee);
       coinBalance = 0;
       totalTrades++;
     }
