@@ -8,16 +8,26 @@ class BacktestResult {
   final double finalBalance;
   final double pnlPercentage;
   final int totalTrades;
+  final int winningTrades;
+  final int losingTrades;
   final int shortMa;
   final int longMa;
   final double stopLoss;
   final double takeProfit;
+
+  /// Gerçek kazanma oranı: kazanan işlem / kapanan toplam işlem
+  double get winRate {
+    final closed = winningTrades + losingTrades;
+    return closed > 0 ? winningTrades / closed : 0.0;
+  }
 
   BacktestResult({
     required this.initialBalance,
     required this.finalBalance,
     required this.pnlPercentage,
     required this.totalTrades,
+    required this.winningTrades,
+    required this.losingTrades,
     required this.shortMa,
     required this.longMa,
     required this.stopLoss,
@@ -41,6 +51,8 @@ class BacktestEngine {
     bool inPosition = false;
     double entryPrice = 0.0;
     int totalTrades = 0;
+    int winningTrades = 0;
+    int losingTrades = 0;
     const double fee = 0.001; // %0.1 işlem komisyonu
 
     // Hesaplamanın doğru çalışması için verilerin eskiden yeniye doğru sıralı olması gerekir.
@@ -58,6 +70,8 @@ class BacktestEngine {
         finalBalance: usdtBalance,
         pnlPercentage: 0.0,
         totalTrades: 0,
+        winningTrades: 0,
+        losingTrades: 0,
         shortMa: shortMaPeriod,
         longMa: longMaPeriod,
         stopLoss: stopLossPct,
@@ -136,6 +150,12 @@ class BacktestEngine {
           coinBalance = 0;
           inPosition = false;
           totalTrades++;
+          // İşlemi kâr ile mi zarar ile mi kapattık? (komisyon hariç giriş fiyatı baz alınır)
+          if (currentPrice > entryPrice) {
+            winningTrades++;
+          } else {
+            losingTrades++;
+          }
         }
       }
     }
@@ -145,6 +165,11 @@ class BacktestEngine {
       usdtBalance = (coinBalance * chronoData.last.close) * (1.0 - fee);
       coinBalance = 0;
       totalTrades++;
+      if (chronoData.last.close > entryPrice) {
+        winningTrades++;
+      } else {
+        losingTrades++;
+      }
     }
 
     double pnlPercentage = ((usdtBalance - 100.0) / 100.0) * 100.0;
@@ -154,6 +179,8 @@ class BacktestEngine {
       finalBalance: usdtBalance,
       pnlPercentage: pnlPercentage,
       totalTrades: totalTrades,
+      winningTrades: winningTrades,
+      losingTrades: losingTrades,
       shortMa: shortMaPeriod,
       longMa: longMaPeriod,
       stopLoss: stopLossPct,

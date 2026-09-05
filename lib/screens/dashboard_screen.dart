@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:candlesticks/candlesticks.dart';
 import '../services/binance_service.dart';
-import '../backtest_engine.dart';
-import '../models/crypto_data.dart';
+import '../utils/backtest_engine.dart';
+import '../models/ticker_data.dart';
 import '../services/storage_service.dart';
 // ==========================================
 // EKRAN İÇİ STATE MANAGEMENT (ViewModel)
@@ -242,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF151A22),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2962FF).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF2962FF).withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -269,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -355,7 +355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   showDuration: const Duration(seconds: 3),
                   textStyle: const TextStyle(color: Colors.white),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2962FF).withOpacity(0.9),
+                    color: const Color(0xFF2962FF).withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   triggerMode: TooltipTriggerMode.tap,
@@ -374,7 +374,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             activeTrackColor: const Color(0xFF2962FF),
             inactiveTrackColor: const Color(0xFF0A0E17),
             thumbColor: Colors.white,
-            overlayColor: const Color(0xFF2962FF).withOpacity(0.2),
+            overlayColor: const Color(0xFF2962FF).withValues(alpha: 0.2),
             trackHeight: 6.0,
           ),
           child: Slider(
@@ -403,20 +403,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Backtest başlamadan hemen önce güncel parametreleri cihaza kaydediyoruz
     StorageService.saveBacktestParams(_shortMa.toInt(), _longMa.toInt(), _slPct, _tpPct);
 
-    // Backtest motoru (backtest_engine.dart) hala CryptoData bekliyor ve eskiden yeniye sıralı veri istiyor.
-    // Yeni servisimiz (BinanceService) veriyi Candle ve "yeni baştan" (ters sıralı) veriyor.
-    // Bu yüzden Backtest motoruna göndermeden önce geri çevirip mapliyoruz.
-    final List<CryptoData> mappedData = _viewModel.klines.reversed.map((c) => CryptoData(
-      timestamp: c.date,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-      volume: c.volume,
-    )).toList();
-
+    // Motor (utils/backtest_engine.dart) doğrudan List<Candle> alır ve
+    // verinin sırasını (eski→yeni / yeni→eski) kendisi tespit eder.
     final result = BacktestEngine.runBacktest(
-      mappedData,
+      _viewModel.klines,
       _shortMa.toInt(),
       _longMa.toInt(),
       _slPct,
@@ -430,8 +420,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final Color pnlColor = isProfit ? const Color(0xFF00E676) : const Color(0xFFFF3D00);
     final String sign = isProfit ? '+' : '';
 
-    double winRate = isProfit ? 0.65 : 0.35; 
-    if(result.totalTrades == 0) winRate = 0;
+    // Gerçek kazanma oranı: motorun kapanan işlemlerden hesapladığı değer
+    final double winRate = result.winRate;
 
     showModalBottomSheet(
       context: context,
@@ -462,9 +452,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: pnlColor.withOpacity(0.1),
+                  color: pnlColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: pnlColor.withOpacity(0.3)),
+                  border: Border.all(color: pnlColor.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   children: [
@@ -486,7 +476,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Kazanma Oranı Tahmini', style: TextStyle(color: Colors.white70)),
+                      const Text('Kazanma Oranı', style: TextStyle(color: Colors.white70)),
                       Text('${(winRate * 100).toInt()}%', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
@@ -657,8 +647,8 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A212D),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF2962FF).withOpacity(0.3)),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4))],
+                  border: Border.all(color: const Color(0xFF2962FF).withValues(alpha: 0.3)),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 4))],
                 ),
                 child: ListView.builder(
                   padding: EdgeInsets.zero,
@@ -671,7 +661,7 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          border: Border(bottom: BorderSide(color: index == options.length - 1 ? Colors.transparent : Colors.white.withOpacity(0.05))),
+                          border: Border(bottom: BorderSide(color: index == options.length - 1 ? Colors.transparent : Colors.white.withValues(alpha: 0.05))),
                         ),
                         child: Row(
                           children: [
@@ -727,7 +717,7 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
                 child: Text('$sign${t.changePercent.toStringAsFixed(2)}%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
               ),
             ],
@@ -760,7 +750,7 @@ class _MarketScreenState extends State<MarketScreen> with AutomaticKeepAliveClie
                   widget.viewModel.loadData(widget.viewModel.currentSymbol, interval: tf);
                 }
               },
-              selectedColor: const Color(0xFF2962FF).withOpacity(0.2),
+              selectedColor: const Color(0xFF2962FF).withValues(alpha: 0.2),
               backgroundColor: const Color(0xFF151A22),
             ),
           );

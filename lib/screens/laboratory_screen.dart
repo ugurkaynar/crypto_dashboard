@@ -67,7 +67,7 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF151A22),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2962FF).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF2962FF).withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -94,7 +94,7 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -180,7 +180,7 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
                   showDuration: const Duration(seconds: 3),
                   textStyle: const TextStyle(color: Colors.white),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2962FF).withOpacity(0.9),
+                    color: const Color(0xFF2962FF).withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   triggerMode: TooltipTriggerMode.tap,
@@ -199,7 +199,7 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
             activeTrackColor: const Color(0xFF2962FF),
             inactiveTrackColor: const Color(0xFF0A0E17),
             thumbColor: Colors.white,
-            overlayColor: const Color(0xFF2962FF).withOpacity(0.2),
+            overlayColor: const Color(0xFF2962FF).withValues(alpha: 0.2),
             trackHeight: 6.0,
           ),
           child: Slider(
@@ -242,8 +242,8 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
     final Color pnlColor = isProfit ? const Color(0xFF00E676) : const Color(0xFFFF3D00);
     final String sign = isProfit ? '+' : '';
 
-    double winRate = isProfit ? 0.65 : 0.35; 
-    if(result.totalTrades == 0) winRate = 0;
+    // Gerçek kazanma oranı: motorun kapanan işlemlerden hesapladığı değer
+    final double winRate = result.winRate;
 
     showModalBottomSheet(
       context: context,
@@ -274,9 +274,9 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  color: pnlColor.withOpacity(0.1),
+                  color: pnlColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: pnlColor.withOpacity(0.3)),
+                  border: Border.all(color: pnlColor.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   children: [
@@ -298,7 +298,7 @@ class _LaboratoryScreenState extends State<LaboratoryScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Kazanma Oranı Tahmini', style: TextStyle(color: Colors.white70)),
+                      const Text('Kazanma Oranı', style: TextStyle(color: Colors.white70)),
                       Text('${(winRate * 100).toInt()}%', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
